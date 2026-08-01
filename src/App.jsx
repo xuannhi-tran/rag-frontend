@@ -18,7 +18,7 @@ function App() {
 
     setLoading(true);
     try {
-      const response = await fetch('http://54.252.148.229:8000/upload/', {
+      const response = await fetch('https://rag-assistant-nhi.duckdns.org/upload/', {
         method: 'POST',
         body: formData,
       });
@@ -44,7 +44,7 @@ function App() {
 
     setLoading(true);
     try {
-      const response = await fetch('http://54.252.148.229:8000/ask', {
+      const response = await fetch('https://rag-assistant-nhi.duckdns.org/ask', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
