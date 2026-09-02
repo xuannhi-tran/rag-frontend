@@ -70,6 +70,7 @@ function App() {
       });
 
       if (response.ok) {
+        const data = await response.json();
         const formatSize = (bytes) => {
           if (bytes < 1024) return bytes + ' B';
           if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
@@ -77,7 +78,9 @@ function App() {
         };
 
         const newDoc = {
+          id: data.document_id,
           name: file.name,
+          summary: data.summary,
           size: formatSize(file.size),
           uploadedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         };
@@ -119,8 +122,13 @@ function App() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ question: trimmedQuestion }),
+        body: JSON.stringify({
+          question: trimmedQuestion,
+          document_names: documents.map((d) => d.name),
+        }),
       });
+
+
 
       if (response.ok) {
         const data = await response.json();
