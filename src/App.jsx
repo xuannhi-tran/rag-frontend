@@ -1,106 +1,196 @@
-import { useState } from 'react';
-import './App.css';
+import React, { useState, useEffect } from 'react';
+import Sidebar from './components/Sidebar';
+import ChatArea from './components/ChatArea';
+import Toast from './components/Toast';
+
+const API_BASE = 'https://rag-assistant-nhi.duckdns.org';
 
 function App() {
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [question, setQuestion] = useState('');
-  const [answer, setAnswer] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [documents, setDocuments] = useState(() => {
+    try {
+      const saved = localStorage.getItem('rag_documents');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
 
-  const handleFileUpload = async () => {
-    if (!selectedFile) {
-      alert('Please select a file first.');
+  const [messages, setMessages] = useState(() => {
+    try {
+      const saved = localStorage.getItem('rag_messages');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [question, setQuestion] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('rag_documents', JSON.stringify(documents));
+    } catch (e) {
+      console.error('Failed to save documents to localStorage:', e);
+    }
+  }, [documents]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('rag_messages', JSON.stringify(messages));
+    } catch (e) {
+      console.error('Failed to save messages to localStorage:', e);
+    }
+  }, [messages]);
+
+  const showToast = (message, type = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => {
+      setToast((prev) => (prev?.message === message ? null : prev));
+    }, 4000);
+  };
+
+  const handleFileUpload = async (file) => {
+    if (!file) {
+      showToast('Please select a valid PDF file.', 'error');
       return;
     }
 
     const formData = new FormData();
-    formData.append('file', selectedFile);
+    formData.append('file', file);
 
-    setLoading(true);
+    setUploading(true);
     try {
-      const response = await fetch('https://rag-assistant-nhi.duckdns.org/upload/', {
+      const response = await fetch(`${API_BASE}/upload/`, {
         method: 'POST',
         body: formData,
       });
 
       if (response.ok) {
-        alert('File uploaded successfully!');
+        const formatSize = (bytes) => {
+          if (bytes < 1024) return bytes + ' B';
+          if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+          return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        };
+
+        const newDoc = {
+          name: file.name,
+          size: formatSize(file.size),
+          uploadedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        };
+
+        // Avoid duplicate entries with the same name
+        setDocuments((prev) => [newDoc, ...prev.filter((d) => d.name !== file.name)]);
+        showToast(`"${file.name}" uploaded and indexed successfully!`, 'success');
       } else {
-        alert('Failed to upload file.');
+        showToast('Failed to upload and process document.', 'error');
       }
     } catch (error) {
       console.error('Error uploading file:', error);
-      alert('An error occurred while uploading the file.');
+      showToast('Connection error while uploading file.', 'error');
     } finally {
-      setLoading(false);
+      setUploading(false);
     }
   };
 
   const handleAskQuestion = async () => {
-    if (!question.trim()) {
-      alert('Please enter a question.');
+    const trimmedQuestion = question.trim();
+    if (!trimmedQuestion) {
+      showToast('Please enter a question.', 'error');
       return;
     }
 
+    const userMessage = {
+      role: 'user',
+      content: trimmedQuestion,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    setQuestion('');
     setLoading(true);
+
     try {
-      const response = await fetch('https://rag-assistant-nhi.duckdns.org/ask', {
+      const response = await fetch(`${API_BASE}/ask`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ question }),
+        body: JSON.stringify({ question: trimmedQuestion }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        setAnswer(data.answer || 'No answer received.');
+        const assistantMessage = {
+          role: 'assistant',
+          content: data.answer || 'No answer received from the server.',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
       } else {
-        alert('Failed to get an answer.');
+        const errorMessage = {
+          role: 'assistant',
+          content: '⚠️ Failed to retrieve an answer from the backend service. Please check your connection or backend status.',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+        showToast('Failed to get an answer.', 'error');
       }
     } catch (error) {
       console.error('Error asking question:', error);
-      alert('An error occurred while asking the question.');
+      const errorMessage = {
+        role: 'assistant',
+        content: '⚠️ Network error occurred while connecting to the RAG service.',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+      showToast('An error occurred while connecting to the server.', 'error');
     } finally {
       setLoading(false);
     }
   };
 
+  const handleClearChat = () => {
+    if (window.confirm('Are you sure you want to clear the conversation?')) {
+      setMessages([]);
+      showToast('Conversation cleared.', 'info');
+    }
+  };
+
+  const handleRemoveDoc = (docName) => {
+    setDocuments((prev) => prev.filter((d) => d.name !== docName));
+    showToast(`Removed "${docName}" from session list.`, 'info');
+  };
+
   return (
-    <div className="App">
-      <h1>AI Assistant</h1>
+    <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-slate-100 font-sans">
+      {/* Sidebar Knowledge Base */}
+      <Sidebar
+        documents={documents}
+        onUpload={handleFileUpload}
+        uploading={uploading}
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen((prev) => !prev)}
+        onRemoveDoc={handleRemoveDoc}
+      />
 
-      {/* Upload Form */}
-      <section>
-        <h2>Upload File</h2>
-        <input
-          type="file"
-          onChange={(e) => setSelectedFile(e.target.files[0])}
-        />
-        <button onClick={handleFileUpload} disabled={loading}>
-          {loading ? 'Uploading...' : 'Upload'}
-        </button>
-      </section>
+      {/* Main Conversational Workspace */}
+      <ChatArea
+        messages={messages}
+        question={question}
+        setQuestion={setQuestion}
+        onSend={handleAskQuestion}
+        loading={loading}
+        onClearChat={handleClearChat}
+        onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+        documentCount={documents.length}
+      />
 
-      {/* Ask Form */}
-      <section>
-        <h2>Ask a Question</h2>
-        <input
-          type="text"
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Enter your question"
-        />
-        <button onClick={handleAskQuestion} disabled={loading}>
-          {loading ? 'Asking...' : 'Ask'}
-        </button>
-      </section>
-
-      {/* Answer Display */}
-      <section>
-        <h2>Answer</h2>
-        <p>{answer}</p>
-      </section>
+      {/* Toast Notification */}
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </div>
   );
 }
