@@ -1,16 +1,59 @@
-# React + Vite
+# RAG Document Assistant — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React frontend for the RAG Document Assistant, a multilingual application for uploading PDF documents and asking context-aware questions about their contents.
 
-Currently, two official plugins are available:
+The frontend connects to a FastAPI backend that performs document ingestion, semantic retrieval with PostgreSQL/pgvector, and grounded answer generation using Gemini.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Features
 
-## React Compiler
+- Upload PDF documents
+- View indexed documents
+- Ask questions across uploaded documents
+- Select one or multiple documents as the retrieval scope
+- Display generated answers and document summaries
+- Responsive web interface
+- Connects to the deployed FastAPI RAG backend
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Tech Stack
 
-## Expanding the Oxlint configuration
+- React
+- Vite
+- JavaScript
+- REST APIs
+- Vercel
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+## Architecture
+
+```text
+User
+  ↓
+React / Vite
+  ↓
+FastAPI Backend
+  ↓
+PostgreSQL + pgvector
+  ↓
+Gemini
+```
+
+## Backend
+
+The backend repository contains the retrieval pipeline, embeddings, database layer, API endpoints, tests, and Docker configuration.
+
+[View Backend Repository](https://github.com/xuannhi-tran/rag-document-assistant)
+
+## Running Locally
+
+```bash
+npm install
+npm run dev
+```
+
+Configure the backend API URL in the appropriate environment variable before starting the application.
+
+## Future Improvements
+
+- Display source citations alongside generated answers
+- Improve document-management UX
+- Add upload and indexing progress states
+- Add authentication and per-user document collections
