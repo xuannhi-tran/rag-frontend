@@ -8,16 +8,19 @@ import {
   Trash2, 
   Loader2,
   FileCheck,
-  ChevronLeft
+  ChevronLeft,
+  ShieldAlert
 } from 'lucide-react';
 
 export default function Sidebar({
   documents,
+  limits = { max_files: 3, max_file_mb: 10, retention_hours: 24 },
   onUpload,
   uploading,
   isOpen,
   onToggle,
-  onRemoveDoc
+  onRemoveDoc,
+  onClearDocs
 }) {
   const fileInputRef = useRef(null);
   const [dragActive, setDragActive] = useState(false);
@@ -137,10 +140,18 @@ export default function Sidebar({
                 <p className="text-xs font-medium text-slate-200">
                   <span className="text-sky-400 font-semibold underline decoration-sky-400/50 underline-offset-2">Click to upload</span> or drag PDF
                 </p>
-                <p className="text-[11px] text-slate-500 mt-1">PDFs up to 25MB supported</p>
+                <p className="text-[11px] text-slate-500 mt-1">PDFs up to {limits.max_file_mb}MB, max {limits.max_files} files</p>
               </div>
             )}
           </div>
+
+          <p className="mt-2.5 flex items-start gap-1.5 text-[11px] leading-snug text-amber-300/80">
+            <ShieldAlert className="w-3.5 h-3.5 shrink-0 mt-px" />
+            <span>
+              Uploaded files are processed to answer your questions and deleted automatically.
+              Please don't upload sensitive documents.
+            </span>
+          </p>
         </div>
 
         {/* Uploaded Documents List */}
@@ -150,6 +161,15 @@ export default function Sidebar({
               <Database className="w-3.5 h-3.5 text-slate-400" />
               Indexed Documents ({documents.length})
             </span>
+            {documents.length > 0 && onClearDocs && (
+              <button
+                onClick={onClearDocs}
+                className="text-[11px] font-medium text-slate-400 hover:text-rose-400 transition-colors"
+                title="Delete all your uploaded documents from the server"
+              >
+                Clear all
+              </button>
+            )}
           </div>
 
           {documents.length === 0 ? (
@@ -160,9 +180,9 @@ export default function Sidebar({
             </div>
           ) : (
             <div className="space-y-2">
-              {documents.map((doc, idx) => (
+              {documents.map((doc) => (
                 <div
-                  key={idx}
+                  key={doc.id}
                   className="group flex items-start justify-between p-3 rounded-xl bg-slate-800/60 border border-slate-700/60 hover:border-slate-600 transition-colors"
                 >
                   <div className="flex items-start gap-2.5 min-w-0 pr-2">
@@ -186,9 +206,9 @@ export default function Sidebar({
 
                   {onRemoveDoc && (
                     <button
-                      onClick={() => onRemoveDoc(doc.name)}
+                      onClick={() => onRemoveDoc(doc)}
                       className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-slate-400 hover:text-rose-400 hover:bg-slate-700/50 transition-all"
-                      title="Remove from session"
+                      title="Delete this document"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
